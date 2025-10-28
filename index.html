@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SEO Audit Bot</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    body { font-family: Arial; text-align: center; padding: 20px; background: #f0f2f5; }
+    input, button { padding: 12px; margin: 10px; font-size: 16px; width: 90%; max-width: 400px; }
+    button { background: #0088cc; color: white; border: none; border-radius: 8px; }
+    .result { margin: 20px; padding: 15px; background: white; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+  </style>
+</head>
+<body>
+  <h1>SEO Audit Tool</h1>
+  <input type="text" id="url" placeholder="Enter URL (e.g., example.com)" />
+  <button onclick="audit()">Run Audit</button>
+  <div id="result" class="result"></div>
+
+  <script>
+    const tg = window.Telegram.WebApp;
+    tg.ready();
+
+    async function audit() {
+      const url = document.getElementById('url').value.trim();
+      if (!url) return alert("URL দিন!");
+
+      const fullUrl = url.startsWith('http') ? url : 'https://' + url;
+      document.getElementById('result').innerHTML = "অডিট চলছে...";
+
+      try {
+        // PageSpeed Insights
+        const psi = await fetch(`https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${fullUrl}&key=AIzaSyADcu8EMFShaERnLXi3E9lXAdhOZcUr-nY`).then(r => r.json());
+        const score = psi.lighthouseResult.categories.performance
+
+.score * 100;
+
+        // Meta Tags
+        const metaRes = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(fullUrl)}`);
+        const metaData = await metaRes.json();
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(metaData.contents, 'text/html');
+        const title = doc.querySelector('title')?.textContent || 'N/A';
+        const desc = doc.querySelector('meta[name="description"]')?.content || 'N/A';
+
+        // Indexed Pages (approx)
+        const googleRes = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent('https://www.google.com/search?q=site:' + url)}`);
+        const googleData = await googleRes.json();
+        const indexedMatch = googleData.contents.match(/About ([\d,]+) results/);
+        const indexed = indexedMatch ? indexedMatch[1] : 'N/A';
+
+        document.getElementById('result').innerHTML = `
+          <h3>${url}</h3>
+          <p><b>Performance Score:</b> ${score.toFixed(0)}/100</p>
+          <p><b>Title:</b> ${title.substring(0,60)}...</p>
+          <p><b>Meta Desc:</b> ${desc.substring(0,160)}...</p>
+          <p><b>Indexed Pages:</b> ~${indexed}</p>
+          <button onclick="tg.close()">Close</button>
+        `;
+      } catch (e) {
+        document.getElementById('result').innerHTML = "Error: " + e.message;
+      }
+    }
+  </script>
+</body>
+</html>
